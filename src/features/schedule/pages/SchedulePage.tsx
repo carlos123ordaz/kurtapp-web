@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Icon, Button, NameCell } from '../../../components/ui'
 import type { Area, User, WorkType, ScheduleEntry, CaseLabel } from '../../../types'
 import userService from '../../usuarios/services/userService'
@@ -219,7 +220,10 @@ const WorkTypesModal: React.FC<WorkTypesModalProps> = ({ workTypes, areaId, onCl
 
 // ── Activity assignment modal ─────────────────────────────────────────────────
 
-type SaveResult = { type: 'upsert'; entry: ScheduleEntry } | { type: 'delete'; id: string }
+type SaveResult =
+  | { type: 'upsert'; entry: ScheduleEntry }
+  | { type: 'delete'; id: string }
+  | { type: 'partial-delete'; entryId: string; newSegments: ScheduleEntry[] }
 
 interface AssignModalProps {
   users: User[]; workTypes: WorkType[]; year: number; month: number
@@ -256,8 +260,22 @@ const AssignModal: React.FC<AssignModalProps> = ({
   const handleDelete = async () => {
     if (!existingEntry?._id) return
     setLoading(true)
-    try { await scheduleService.delete(existingEntry._id); onSaved({ type: 'delete', id: existingEntry._id }); onClose() }
-    finally { setLoading(false) }
+    try {
+      const entryStart = new Date(existingEntry.startDate).getUTCDate()
+      const entryEnd   = new Date(existingEntry.endDate).getUTCDate()
+      if (preDay !== undefined && (entryStart !== entryEnd)) {
+        // Solo elimina el día específico que se clickeó, no todo el rango
+        const segs = await scheduleService.partialDelete([{
+          entryId: existingEntry._id,
+          datesToRemove: [new Date(year, month, preDay).toISOString()],
+        }])
+        onSaved({ type: 'partial-delete', entryId: existingEntry._id, newSegments: segs.map((e) => ({ ...e, userId: normalizeUserId(e.userId) })) })
+      } else {
+        await scheduleService.delete(existingEntry._id)
+        onSaved({ type: 'delete', id: existingEntry._id })
+      }
+      onClose()
+    } finally { setLoading(false) }
   }
 
   return (
@@ -437,6 +455,69 @@ const CaseLabelModal: React.FC<CaseLabelModalProps> = ({
   )
 }
 
+// ── Cell context menu ─────────────────────────────────────────────────────────
+
+interface CellContextMenuProps {
+  x: number; y: number; startDay: number; endDay: number
+  hasActivities: boolean; loading: boolean
+  onDelete: () => void; onModify: () => void; onClose: () => void
+}
+
+const CellContextMenu: React.FC<CellContextMenuProps> = ({ x, y, startDay, endDay, hasActivities, loading, onDelete, onModify, onClose }) => {
+  const [confirming, setConfirming] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ x, y })
+  const dayCount = endDay - startDay + 1
+
+  useEffect(() => {
+    if (!menuRef.current) return
+    const rect = menuRef.current.getBoundingClientRect()
+    setPos({ x: Math.min(x + 8, window.innerWidth - rect.width - 12), y: Math.min(y + 8, window.innerHeight - rect.height - 12) })
+  }, [x, y])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) onClose() }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [onClose])
+
+  return (
+    <div ref={menuRef} style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 300, background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', boxShadow: '0 4px 24px rgba(0,0,0,0.18)', minWidth: 210, overflow: 'hidden' }}>
+      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border-soft)', fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--fg-2)', background: 'var(--surface-2)' }}>
+        {dayCount} día{dayCount !== 1 ? 's' : ''} seleccionado{dayCount !== 1 ? 's' : ''}
+      </div>
+      {confirming ? (
+        <div style={{ padding: '12px 14px' }}>
+          <p style={{ margin: '0 0 10px', fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' }}>
+            ¿Eliminar <strong>{dayCount}</strong> día{dayCount !== 1 ? 's' : ''}?
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn--danger" style={{ flex: 1 }} onClick={onDelete} disabled={loading}>
+              {loading ? 'Eliminando…' : 'Confirmar'}
+            </button>
+            <button className="btn" onClick={() => setConfirming(false)} disabled={loading}>No</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: 4 }}>
+          {hasActivities && (
+            <button className="btn btn--ghost" style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--danger)', gap: 8, padding: '7px 10px' }} onClick={() => setConfirming(true)}>
+              <Icon name="trash" size={13} />Eliminar selección
+            </button>
+          )}
+          <button className="btn btn--ghost" style={{ width: '100%', justifyContent: 'flex-start', gap: 8, padding: '7px 10px' }} onClick={onModify}>
+            <Icon name="edit" size={13} />{hasActivities ? 'Modificar' : 'Asignar'}
+          </button>
+          <div style={{ height: 1, background: 'var(--border-soft)', margin: '2px 4px' }} />
+          <button className="btn btn--ghost" style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--fg-muted)', gap: 8, padding: '7px 10px' }} onClick={onClose}>
+            Cancelar
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 interface ModalState {
@@ -454,6 +535,7 @@ type ActiveMode = 'normal' | 'delete' | 'case'
 
 export const SchedulePage: React.FC = () => {
   const { user: authUser } = useAuth()
+  const navigate = useNavigate()
   const now = new Date()
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -474,6 +556,8 @@ export const SchedulePage: React.FC = () => {
   const [deleteSelected, setDeleteSelected] = useState<Set<string>>(new Set())
   const [deleteLoading, setDeleteLoading]   = useState(false)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [contextMenu, setContextMenu]                 = useState<{ userId: string; startDay: number; endDay: number; x: number; y: number; hasActivities: boolean } | null>(null)
+  const [contextMenuLoading, setContextMenuLoading]   = useState(false)
 
   const userAreas    = useMemo(() => (authUser?.areas ?? []) as Area[], [authUser])
   const selectedAreaId = userAreas[0]?._id
@@ -552,7 +636,7 @@ export const SchedulePage: React.FC = () => {
     dragRef.current = sel; setDragSel(sel)
   }
 
-  const handleCellMouseUp = (u: User, _day: number) => {
+  const handleCellMouseUp = (u: User, _day: number, ev: React.MouseEvent) => {
     if (!dragRef.current) return
     const { userId, startDay, endDay } = dragRef.current
     dragRef.current = null; setDragSel(null)
@@ -586,9 +670,13 @@ export const SchedulePage: React.FC = () => {
       const existing = getEntry(userId, s) ?? undefined
       setModal({ preUserId: userId, preDay: s, existingEntry: existing })
     } else {
-      const codes = new Set<string>()
-      for (let d = s; d <= e; d++) { const en = getEntry(userId, d); if (en) codes.add(en.workTypeCode) }
-      setModal({ preUserId: userId, preDay: s, preDayEnd: e, preWorkTypeCode: codes.size === 1 ? [...codes][0] : undefined })
+      const hasActivities = Array.from({ length: e - s + 1 }, (_, i) => s + i).some((d) => !!getEntry(userId, d))
+      if (!hasActivities) {
+        // Celdas vacías → abrir AssignModal directamente
+        setModal({ preUserId: userId, preDay: s, preDayEnd: e })
+      } else {
+        setContextMenu({ userId, startDay: s, endDay: e, x: ev.clientX, y: ev.clientY, hasActivities: true })
+      }
     }
   }
 
@@ -607,6 +695,11 @@ export const SchedulePage: React.FC = () => {
         const idx = filtered.findIndex((e) => e._id === entry._id)
         if (idx >= 0) { const n = [...filtered]; n[idx] = entry; return n }
         return [...filtered, entry]
+      })
+    } else if (result.type === 'partial-delete') {
+      setEntries((prev) => {
+        const filtered = prev.filter((e) => e._id !== result.entryId)
+        return [...filtered, ...result.newSegments]
       })
     } else {
       setEntries((prev) => prev.filter((e) => e._id !== result.id))
@@ -664,6 +757,31 @@ export const SchedulePage: React.FC = () => {
     } catch { } finally { setDeleteLoading(false) }
   }
 
+  const handleContextMenuDelete = async () => {
+    if (!contextMenu) return
+    const { userId, startDay, endDay } = contextMenu
+    const deletionsMap = new Map<string, Set<number>>()
+    for (let d = startDay; d <= endDay; d++) {
+      const entry = getEntry(userId, d); if (!entry?._id) continue
+      if (!deletionsMap.has(entry._id)) deletionsMap.set(entry._id, new Set())
+      deletionsMap.get(entry._id)!.add(d)
+    }
+    const deletions = [...deletionsMap.entries()].map(([entryId, ds]) => ({
+      entryId, datesToRemove: [...ds].map((d) => new Date(year, month, d).toISOString()),
+    }))
+    if (!deletions.length) { setContextMenu(null); return }
+    setContextMenuLoading(true)
+    try {
+      const newSegments = await scheduleService.partialDelete(deletions)
+      const affectedIds = new Set(deletions.map((d) => d.entryId))
+      setEntries((prev) => {
+        const filtered = prev.filter((e) => !e._id || !affectedIds.has(e._id))
+        return [...filtered, ...newSegments.map((e) => ({ ...e, userId: normalizeUserId(e.userId) }))]
+      })
+      setContextMenu(null)
+    } catch { } finally { setContextMenuLoading(false) }
+  }
+
   const handleWorkTypesSaved = async () => {
     if (!selectedAreaId) return
     setWorkTypes(await workTypeService.getAll(selectedAreaId))
@@ -717,6 +835,14 @@ export const SchedulePage: React.FC = () => {
           >
             <Icon name="trash" size={14} />
             {mode === 'delete' ? 'Salir' : 'Seleccionar'}
+          </button>
+
+          <button
+            className="btn btn--ghost"
+            onClick={() => navigate(`/schedule/resumen?month=${month}&year=${year}&areaId=${selectedAreaId ?? ''}&areaName=${encodeURIComponent(userAreas[0]?.name ?? '')}`)}
+            disabled={!selectedAreaId}
+          >
+            Ver resumen
           </button>
 
           <Button kind="ghost" icon="settings" onClick={() => setShowWorkTypesModal(true)}>Actividades</Button>
@@ -788,105 +914,146 @@ export const SchedulePage: React.FC = () => {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan={days.length + 1} style={{ textAlign: 'center', color: 'var(--fg-muted)', padding: '32px 0' }}>No hay empleados en esta área.</td></tr>
-                ) : filteredUsers.map((u, ui) => (
-                  <tr key={u._id}>
-                    <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
-                      <NameCell name={`${u.name} ${u.lname}`} avatarIdx={ui} />
-                    </td>
-                    {days.map((d) => {
-                      const wd    = new Date(year, month, d).getDay()
-                      const isWk  = wd === 0 || wd === 6
-                      const entry = getEntry(u._id, d)
-                      const cl    = getCaseLabel(u._id, d)
-                      const wt    = entry ? workTypeMap[entry.workTypeCode] : null
+                ) : filteredUsers.map((u, ui) => {
+                  // Agrupa días consecutivos con el mismo N° de caso para colspan
+                  const clGroups: Array<{ cl: CaseLabel | null; startDay: number; count: number }> = []
+                  let cur: { cl: CaseLabel | null; startDay: number; count: number } | null = null
+                  for (const d of days) {
+                    const cl = getCaseLabel(u._id, d)
+                    if (!cur) { cur = { cl, startDay: d, count: 1 } }
+                    else if ((cur.cl?._id ?? null) === (cl?._id ?? null)) { cur.count++ }
+                    else { clGroups.push(cur); cur = { cl, startDay: d, count: 1 } }
+                  }
+                  if (cur) clGroups.push(cur)
 
-                      const isDeleteSel = !!entry && deleteSelected.has(cellKey(u._id, d))
+                  const dragStart = dragSel && u._id === dragSel.userId ? Math.min(dragSel.startDay, dragSel.endDay) : -1
+                  const dragEnd   = dragSel && u._id === dragSel.userId ? Math.max(dragSel.startDay, dragSel.endDay) : -1
 
-                      const dragActive = dragSel !== null && u._id === dragSel.userId &&
-                        d >= Math.min(dragSel.startDay, dragSel.endDay) &&
-                        d <= Math.max(dragSel.startDay, dragSel.endDay)
+                  return (
+                    <React.Fragment key={u._id}>
+                      {/* ── Fila de N° de caso (celda por día para drag preciso) ── */}
+                      <tr style={{ height: 0 }}>
+                        <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1, padding: 0 }} />
+                        {clGroups.flatMap((g) =>
+                          Array.from({ length: g.count }, (_, i) => {
+                            const d       = g.startDay + i
+                            const isFirst = i === 0
+                            const isLast  = i === g.count - 1
+                            const hasDrag = mode === 'case' && dragStart !== -1 && d >= dragStart && d <= dragEnd
+                            const bg = hasDrag
+                              ? 'rgba(234,179,8,0.5)'
+                              : g.cl
+                                ? 'rgba(234,179,8,0.18)'
+                                : mode === 'case' ? 'rgba(234,179,8,0.04)' : 'transparent'
+                            return (
+                              <td
+                                key={`cl-${d}`}
+                                style={{
+                                  padding: 0, height: 14,
+                                  background: bg,
+                                  borderLeft:  isFirst && (!!g.cl || (hasDrag && d === dragStart)) ? '2px solid rgba(234,179,8,0.5)'  : 'none',
+                                  borderRight: isLast  && (!!g.cl || (hasDrag && d === dragEnd))   ? '1px solid rgba(234,179,8,0.25)' : 'none',
+                                  position: 'relative', overflow: 'visible',
+                                  transition: 'background 0.05s',
+                                  cursor: mode === 'case' ? 'crosshair' : 'default',
+                                }}
+                                onMouseDown={() => handleCellMouseDown(u, d)}
+                                onMouseEnter={(e) => handleCellMouseEnter(u, d, e)}
+                                onMouseUp={(ev) => handleCellMouseUp(u, d, ev)}
+                                title={g.cl ? `Caso: ${g.cl.caseNumber}` : mode === 'case' ? 'Arrastra para asignar caso' : undefined}
+                              >
+                                {g.cl && isFirst && (
+                                  <span style={{
+                                    position: 'absolute', left: 0, top: 1,
+                                    width: `${g.count * 36}px`,
+                                    textAlign: 'center',
+                                    fontSize: 8.5, fontWeight: 700, color: '#7c2d12',
+                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                    pointerEvents: 'none', zIndex: 5, lineHeight: '12px',
+                                  }}>
+                                    {g.cl.caseNumber}
+                                  </span>
+                                )}
+                              </td>
+                            )
+                          })
+                        )}
+                      </tr>
 
-                      const isCaseDrag     = mode === 'case'   && dragActive
-                      const isActivityDrag = mode !== 'case'   && dragActive
-                      const isDeleteDrag   = mode === 'delete' && dragActive
-
-                      // Case label band: first day of label range shows text
-                      const isCaseStart = cl ? new Date(cl.startDate).getDate() === d : false
-
-                      // Activity colors
-                      let abg = 'transparent', afg = 'var(--fg-faint)'
-                      if (isDeleteSel)                    { abg = 'var(--danger)';                afg = 'white' }
-                      else if (isDeleteDrag)              { abg = 'oklch(0.75 0.12 25)';          afg = 'white' }
-                      else if (isActivityDrag)            { abg = 'var(--accent)';                afg = 'white' }
-                      else if (wt)                        { abg = wt.color;                       afg = 'white' }
-
-                      // Case band colors
-                      const caseBandBg = isCaseDrag
-                        ? 'rgba(234,179,8,0.55)'
-                        : cl
-                          ? 'rgba(234,179,8,0.2)'
-                          : mode === 'case' ? 'rgba(234,179,8,0.04)' : 'transparent'
-                      const caseBandBorder = (cl || isCaseDrag) ? '2px solid rgba(234,179,8,0.45)' : '2px solid transparent'
-
-                      const tooltip = cl
-                        ? `Caso: ${cl.caseNumber}${wt ? ` | ${wt.code} — ${wt.label}` : ''}`
-                        : wt
-                          ? `${wt.code} — ${wt.label}`
-                          : mode === 'case' ? 'Arrastra para asignar caso' : 'Clic o arrastra para asignar'
-
-                      return (
-                        <td key={d}
-                          style={{ padding: '0 2px 2px', background: isWk ? 'oklch(0.97 0.004 250)' : undefined, verticalAlign: 'top' }}
-                          onMouseDown={() => handleCellMouseDown(u, d)}
-                          onMouseEnter={(e) => handleCellMouseEnter(u, d, e)}
-                          onMouseUp={() => handleCellMouseUp(u, d)}
-                          title={tooltip}
-                        >
-                          {/* ── Case label band (top) ── */}
-                          <div style={{
-                            height: 13, marginBottom: 1,
-                            background: caseBandBg,
-                            borderLeft: caseBandBorder,
-                            borderRadius: '3px 3px 0 0',
-                            display: 'flex', alignItems: 'center', paddingLeft: 2,
-                            overflow: 'hidden',
-                            transition: 'background 0.05s',
-                          }}>
-                            {isCaseStart && !isCaseDrag && (
-                              <span style={{ fontSize: 7, fontWeight: 700, color: '#7c2d12', maxWidth: 32, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
-                                {cl!.caseNumber}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* ── Activity cell (bottom) ── */}
-                          <div style={{
-                            background: abg, color: afg,
-                            fontFamily: 'Geist Mono', fontSize: 10, fontWeight: 700,
-                            borderRadius: '0 0 3px 3px',
-                            minHeight: 22,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer',
-                            opacity: isActivityDrag ? 0.9 : isDeleteSel ? 1 : wt ? 0.9 : 1,
-                            outline: isDeleteSel
-                              ? '2px solid var(--danger)'
-                              : isDeleteDrag
-                                ? '2px solid oklch(0.6 0.18 25)'
-                                : isActivityDrag
-                                  ? '2px solid var(--accent)'
-                                  : undefined,
-                            transition: 'background 0.05s',
-                          }}>
-                            {isActivityDrag && !wt
-                              ? <span style={{ fontSize: 8 }}>●</span>
-                              : wt ? wt.code : <span style={{ fontSize: 8, opacity: 0.3 }}>+</span>
-                            }
-                          </div>
+                      {/* ── Fila de actividades ── */}
+                      <tr>
+                        <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
+                          <NameCell name={`${u.name} ${u.lname}`} avatarIdx={ui} />
                         </td>
-                      )
-                    })}
-                  </tr>
-                ))}
+                        {days.map((d) => {
+                          const wd    = new Date(year, month, d).getDay()
+                          const isWk  = wd === 0 || wd === 6
+                          const entry = getEntry(u._id, d)
+                          const cl    = getCaseLabel(u._id, d)
+                          const wt    = entry ? workTypeMap[entry.workTypeCode] : null
+
+                          const isDeleteSel = !!entry && deleteSelected.has(cellKey(u._id, d))
+
+                          const dragActive = dragSel !== null && u._id === dragSel.userId &&
+                            d >= Math.min(dragSel.startDay, dragSel.endDay) &&
+                            d <= Math.max(dragSel.startDay, dragSel.endDay)
+
+                          const isCaseDrag     = mode === 'case'   && dragActive
+                          const isActivityDrag = mode !== 'case'   && dragActive
+                          const isDeleteDrag   = mode === 'delete' && dragActive
+
+                          let abg = 'transparent', afg = 'var(--fg-faint)'
+                          if (isDeleteSel)        { abg = 'var(--danger)';           afg = 'white' }
+                          else if (isDeleteDrag)  { abg = 'oklch(0.75 0.12 25)';     afg = 'white' }
+                          else if (isActivityDrag){ abg = 'var(--accent)';            afg = 'white' }
+                          else if (isCaseDrag)    { abg = 'rgba(234,179,8,0.2)';      afg = 'var(--fg)' }
+                          else if (wt)            { abg = wt.color;                   afg = 'white' }
+
+                          const tooltip = cl
+                            ? `Caso: ${cl.caseNumber}${wt ? ` | ${wt.code} — ${wt.label}` : ''}`
+                            : wt
+                              ? `${wt.code} — ${wt.label}`
+                              : mode === 'case' ? 'Arrastra para asignar caso' : 'Clic o arrastra para asignar'
+
+                          return (
+                            <td key={d}
+                              style={{ padding: '0 2px 2px', background: isWk ? 'oklch(0.97 0.004 250)' : undefined }}
+                              onMouseDown={() => { if (mode !== 'case') handleCellMouseDown(u, d) }}
+                              onMouseEnter={(e) => handleCellMouseEnter(u, d, e)}
+                              onMouseUp={(ev) => { if (mode !== 'case') handleCellMouseUp(u, d, ev) }}
+                              title={tooltip}
+                            >
+                              <div style={{
+                                background: abg, color: afg,
+                                fontFamily: 'Geist Mono', fontSize: 10, fontWeight: 700,
+                                borderRadius: 3,
+                                minHeight: 22,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer',
+                                opacity: isActivityDrag ? 0.9 : isDeleteSel ? 1 : wt ? 0.9 : 1,
+                                outline: isDeleteSel
+                                  ? '2px solid var(--danger)'
+                                  : isDeleteDrag
+                                    ? '2px solid oklch(0.6 0.18 25)'
+                                    : isActivityDrag
+                                      ? '2px solid var(--accent)'
+                                      : isCaseDrag
+                                        ? '2px solid rgba(234,179,8,0.55)'
+                                        : undefined,
+                                transition: 'background 0.05s',
+                              }}>
+                                {isActivityDrag && !wt
+                                  ? <span style={{ fontSize: 8 }}>●</span>
+                                  : wt ? wt.code : <span style={{ fontSize: 8, opacity: 0.3 }}>+</span>
+                                }
+                              </div>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    </React.Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -948,6 +1115,27 @@ export const SchedulePage: React.FC = () => {
       {showWorkTypesModal && selectedAreaId && (
         <WorkTypesModal workTypes={workTypes} areaId={selectedAreaId}
           onClose={() => setShowWorkTypesModal(false)} onSaved={handleWorkTypesSaved} />
+      )}
+
+      {/* Cell context menu */}
+      {contextMenu !== null && (
+        <CellContextMenu
+          x={contextMenu.x} y={contextMenu.y}
+          startDay={contextMenu.startDay} endDay={contextMenu.endDay}
+          hasActivities={contextMenu.hasActivities}
+          loading={contextMenuLoading}
+          onDelete={handleContextMenuDelete}
+          onModify={() => {
+            const cm = contextMenu
+            if (!cm) return
+            const { userId, startDay, endDay } = cm
+            const codes = new Set<string>()
+            for (let d = startDay; d <= endDay; d++) { const ent = getEntry(userId, d); if (ent) codes.add(ent.workTypeCode) }
+            setContextMenu(null)
+            setModal({ preUserId: userId, preDay: startDay, preDayEnd: endDay, preWorkTypeCode: codes.size === 1 ? [...codes][0] : undefined })
+          }}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </div>
   )

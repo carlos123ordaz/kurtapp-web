@@ -11,6 +11,7 @@ import { AsistenciaPage } from './features/asistencia/pages/AsistenciaPage'
 import { IncidenciasPage } from './features/incidencias/pages/IncidenciasPage'
 import { RolesPage } from './features/roles/pages/RolesPage'
 import { SchedulePage } from './features/schedule/pages/SchedulePage'
+import { ScheduleSummaryPage } from './features/schedule/pages/ScheduleSummaryPage'
 import { VacacionesPage } from './features/vacaciones/pages/VacacionesPage'
 import { CotizacionesPage } from './features/cotizaciones/pages/CotizacionesPage'
 import type { PageId } from './types'
@@ -48,8 +49,12 @@ function AdminApp() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const currentPage = (ROUTE_PAGE[location.pathname] ?? 'dashboard') as PageId
-  const meta = PAGE_META[currentPage]
+  const pathname = location.pathname
+  const currentPage = (ROUTE_PAGE[pathname] ??
+    (pathname.startsWith('/schedule') ? 'schedule' : 'dashboard')) as PageId
+  const meta = pathname === '/schedule/resumen'
+    ? { title: 'Resumen de actividades', sub: 'Control de actividades' }
+    : PAGE_META[currentPage]
 
   const handleNav = (id: PageId) => {
     navigate(PAGE_ROUTE[id])
@@ -83,6 +88,7 @@ function AdminApp() {
         <Route path="/usuarios" element={<UsersPage />} />
         <Route path="/incidencias" element={<IncidenciasPage />} />
         <Route path="/schedule" element={<SchedulePage />} />
+        <Route path="/schedule/resumen" element={<ScheduleSummaryPage />} />
         <Route path="/roles" element={<RolesPage />} />
         <Route path="/vacaciones" element={<VacacionesPage />} />
         <Route path="/cotizaciones" element={<CotizacionesPage />} />
