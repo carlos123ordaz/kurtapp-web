@@ -127,12 +127,18 @@ export interface Incidencia {
 
 export interface HistorialEstado {
   _id?: string
-  actor: string
-  action: string
+  // DB fields (raw from API)
+  estado?: string
+  fecha?: string
+  user?: { name: string; lname: string; email?: string }
+  notas?: string
+  // Frontend-friendly fields
+  actor?: string
+  action?: string
   from?: string
   to?: string
   note?: string
-  time: string
+  time?: string
   kind?: 'create' | 'state' | 'deadline' | 'system' | 'comment'
   assignTo?: string
 }

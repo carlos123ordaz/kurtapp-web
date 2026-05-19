@@ -223,6 +223,21 @@ const CambiarEstadoModal: React.FC<CambiarEstadoModalProps> = ({ inc, users, onC
   const [notas, setNotas] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [userSearch, setUserSearch] = useState(() => {
+    const u = inc.asigned
+    return u ? `${u.name} ${u.lname}` : ''
+  })
+  const [showUserDropdown, setShowUserDropdown] = useState(false)
+
+  const filteredUsers = userSearch
+    ? users.filter((u) => `${u.name} ${u.lname}`.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase()))
+    : users
+
+  const handleSelectUser = (u: User) => {
+    setAsignado(u._id)
+    setUserSearch(`${u.name} ${u.lname}`)
+    setShowUserDropdown(false)
+  }
 
   const handleSave = async () => {
     if (esPendiente) {
@@ -283,12 +298,39 @@ const CambiarEstadoModal: React.FC<CambiarEstadoModalProps> = ({ inc, users, onC
           )}
           {esPendiente && (
             <>
-              <div className="field">
+              <div className="field" style={{ position: 'relative' }}>
                 <label className="field__label">Responsable <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <select className="input" value={asignado} onChange={(e) => setAsignado(e.target.value)}>
-                  <option value="">Seleccionar usuario…</option>
-                  {users.map((u) => <option key={u._id} value={u._id}>{u.name} {u.lname}</option>)}
-                </select>
+                <input
+                  className="input"
+                  placeholder="Buscar responsable…"
+                  value={userSearch}
+                  autoComplete="off"
+                  onChange={(e) => { setUserSearch(e.target.value); setAsignado(''); setShowUserDropdown(true) }}
+                  onFocus={() => { setUserSearch(''); setShowUserDropdown(true) }}
+                  onBlur={() => setTimeout(() => {
+                    setShowUserDropdown(false)
+                    const sel = users.find((u) => u._id === asignado)
+                    setUserSearch(sel ? `${sel.name} ${sel.lname}` : '')
+                  }, 150)}
+                />
+                {showUserDropdown && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-lg)', maxHeight: 200, overflowY: 'auto', marginTop: 2 }}>
+                    {filteredUsers.length === 0 ? (
+                      <div style={{ padding: '10px 14px', fontSize: 'var(--fs-sm)', color: 'var(--fg-muted)' }}>Sin resultados</div>
+                    ) : filteredUsers.map((u) => (
+                      <button
+                        key={u._id}
+                        type="button"
+                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-sm)', background: asignado === u._id ? 'var(--accent-soft)' : 'transparent', color: 'var(--fg)' }}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectUser(u)}
+                      >
+                        {u.name} {u.lname}
+                        {u.email && <span style={{ color: 'var(--fg-muted)', marginLeft: 8, fontSize: 'var(--fs-xs)' }}>{u.email}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="field">
                 <label className="field__label">Fecha límite <span style={{ color: 'var(--danger)' }}>*</span></label>
@@ -317,26 +359,47 @@ const CambiarEstadoModal: React.FC<CambiarEstadoModalProps> = ({ inc, users, onC
 
 interface ModificarDeadlineModalProps {
   inc: Incidencia
+  users: User[]
   onClose: () => void
   onUpdated: () => void
 }
 
-const ModificarDeadlineModal: React.FC<ModificarDeadlineModalProps> = ({ inc, onClose, onUpdated }) => {
+const ModificarDeadlineModal: React.FC<ModificarDeadlineModalProps> = ({ inc, users, onClose, onUpdated }) => {
   const [newDeadline, setNewDeadline] = useState(inc.deadline ? inc.deadline.slice(0, 10) : '')
+  const [asignado, setAsignado] = useState(inc.asigned?._id ?? '')
+  const [userSearch, setUserSearch] = useState(() => {
+    const u = inc.asigned
+    return u ? `${u.name} ${u.lname}` : ''
+  })
+  const [showUserDropdown, setShowUserDropdown] = useState(false)
   const [notas, setNotas] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const filteredUsers = userSearch
+    ? users.filter((u) => `${u.name} ${u.lname}`.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase()))
+    : users
+
+  const handleSelectUser = (u: User) => {
+    setAsignado(u._id)
+    setUserSearch(`${u.name} ${u.lname}`)
+    setShowUserDropdown(false)
+  }
 
   const handleSave = async () => {
     if (!newDeadline) { setError('Selecciona una fecha límite.'); return }
     setSaving(true)
     setError(null)
     try {
-      await incidenciasService.modificarDeadline(inc._id, { newDeadline: new Date(newDeadline), notasDeadline: notas })
+      await incidenciasService.modificarAsignacion(inc._id, {
+        asigned: asignado || null,
+        newDeadline: new Date(newDeadline),
+        notas,
+      })
       onUpdated()
       onClose()
     } catch {
-      setError('Error al actualizar el deadline.')
+      setError('Error al actualizar la asignación.')
     } finally {
       setSaving(false)
     }
@@ -345,7 +408,7 @@ const ModificarDeadlineModal: React.FC<ModificarDeadlineModalProps> = ({ inc, on
   const modalSx: React.CSSProperties = {
     position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
     background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
-    boxShadow: 'var(--shadow-xl)', width: 420, maxWidth: '90vw', zIndex: 200,
+    boxShadow: 'var(--shadow-xl)', width: 460, maxWidth: '90vw', zIndex: 200,
   }
 
   return (
@@ -353,27 +416,56 @@ const ModificarDeadlineModal: React.FC<ModificarDeadlineModalProps> = ({ inc, on
       <div className="drawer-overlay" onClick={onClose} style={{ zIndex: 199 }} />
       <div style={modalSx}>
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: 'var(--fs-lg)', fontWeight: 600 }}>Modificar fecha límite</h2>
+          <h2 style={{ margin: 0, fontSize: 'var(--fs-lg)', fontWeight: 600 }}>Editar responsable y deadline</h2>
           <button className="btn btn--ghost btn--icon" onClick={onClose}><Icon name="close" size={18} /></button>
         </div>
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {inc.deadline && (
-            <div style={{ padding: '10px 14px', background: 'var(--accent-soft)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-border)', fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' }}>
-              Deadline actual: <strong>{new Date(inc.deadline).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>
-            </div>
-          )}
           {error && (
             <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
               {error}
             </div>
           )}
+          <div className="field" style={{ position: 'relative' }}>
+            <label className="field__label">Responsable</label>
+            <input
+              className="input"
+              placeholder="Buscar responsable…"
+              value={userSearch}
+              autoComplete="off"
+              onChange={(e) => { setUserSearch(e.target.value); setAsignado(''); setShowUserDropdown(true) }}
+              onFocus={() => { setUserSearch(''); setShowUserDropdown(true) }}
+              onBlur={() => setTimeout(() => {
+                setShowUserDropdown(false)
+                const sel = users.find((u) => u._id === asignado)
+                setUserSearch(sel ? `${sel.name} ${sel.lname}` : '')
+              }, 150)}
+            />
+            {showUserDropdown && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-lg)', maxHeight: 200, overflowY: 'auto', marginTop: 2 }}>
+                {filteredUsers.length === 0 ? (
+                  <div style={{ padding: '10px 14px', fontSize: 'var(--fs-sm)', color: 'var(--fg-muted)' }}>Sin resultados</div>
+                ) : filteredUsers.map((u) => (
+                  <button
+                    key={u._id}
+                    type="button"
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-sm)', background: asignado === u._id ? 'var(--accent-soft)' : 'transparent', color: 'var(--fg)' }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelectUser(u)}
+                  >
+                    {u.name} {u.lname}
+                    {u.email && <span style={{ color: 'var(--fg-muted)', marginLeft: 8, fontSize: 'var(--fs-xs)' }}>{u.email}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="field">
-            <label className="field__label">Nueva fecha límite <span style={{ color: 'var(--danger)' }}>*</span></label>
+            <label className="field__label">Fecha límite <span style={{ color: 'var(--danger)' }}>*</span></label>
             <input className="input" type="date" value={newDeadline} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setNewDeadline(e.target.value)} />
           </div>
           <div className="field">
-            <label className="field__label">Motivo del cambio</label>
-            <textarea className="textarea" rows={3} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Explica el motivo del cambio de fecha…" />
+            <label className="field__label">Notas del cambio</label>
+            <textarea className="textarea" rows={3} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Motivo o contexto del cambio…" />
           </div>
         </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -403,6 +495,7 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
   const [tab, setTab] = useState<'detalle' | 'historial' | 'fotos'>(initialTab)
   const [nota, setNota] = useState('')
   const [savingNota, setSavingNota] = useState(false)
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null)
 
   const asignado = inc.asigned
   const reportador = inc.user
@@ -410,7 +503,6 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
   const deadlineDate = inc.deadline ? new Date(inc.deadline) : null
   const daysLeft = deadlineDate ? Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null
   const esCerrado = inc.estado === 'Cerrado'
-  const esEnRevision = inc.estado === 'En Revisión'
 
   const handleAddNota = async () => {
     if (!nota.trim()) return
@@ -454,20 +546,21 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               {/* Deadline + Asignación */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, padding: 16, background: 'var(--bg-2)', borderRadius: 10, border: '1px solid var(--border-soft)' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-muted)' }}>Deadline</div>
-                    {esEnRevision && (
-                      <button
-                        className="btn btn--ghost btn--icon"
-                        style={{ width: 24, height: 24 }}
-                        title="Modificar deadline"
-                        onClick={onOpenDeadline}
-                      >
-                        <Icon name="edit" size={12} />
-                      </button>
-                    )}
+                {!esCerrado && (
+                  <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Asignación</span>
+                    <button
+                      className="btn btn--ghost btn--icon"
+                      style={{ width: 24, height: 24 }}
+                      title="Editar responsable y deadline"
+                      onClick={onOpenDeadline}
+                    >
+                      <Icon name="edit" size={12} />
+                    </button>
                   </div>
+                )}
+                <div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-muted)', marginBottom: 4 }}>Deadline</div>
                   {deadlineDate ? (
                     <>
                       <div style={{ fontWeight: 600, fontSize: 'var(--fs-md)' }}>
@@ -544,7 +637,12 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
                   <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>Evidencia · {inc.imagenes!.length} fotos</div>
                   <div className="photo-grid">
                     {inc.imagenes!.map((src, i) => (
-                      <div key={i} className="photo" style={{ backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                      <div
+                        key={i}
+                        className="photo"
+                        style={{ backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center', cursor: 'zoom-in' }}
+                        onClick={() => src && setLightboxImg(src)}
+                      >
                         {!src && <span className="photo__label">IMG_{i + 1}</span>}
                       </div>
                     ))}
@@ -556,15 +654,22 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
 
           {tab === 'historial' && (
             <div className="timeline">
-              {(inc.historialEstados ?? []).map((h, i) => (
+              {(inc.historialEstados ?? []).map((h, i) => {
+                const actor = h.actor ?? (h.user ? `${h.user.name} ${h.user.lname}` : 'Sistema')
+                const time = h.time ?? (h.fecha ? new Date(h.fecha).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
+                const note = h.note ?? h.notas
+                const action = h.action ?? (h.estado ? `→ ${h.estado}` : 'Nota')
+                const kind = h.kind ?? (i === 0 ? 'create' : h.estado ? 'state' : 'comment')
+                const isResuelto = h.to === 'Resuelto' || h.estado === 'Resuelto'
+                return (
                 <div key={i} className="timeline__item">
-                  <div className={`timeline__dot${h.kind === 'create' ? ' timeline__dot--accent' : (h.kind === 'state' && h.to === 'resuelto') ? ' timeline__dot--success' : ''}`}>
-                    <Icon name={h.kind === 'create' ? 'flag' : h.kind === 'state' ? 'activity' : h.kind === 'deadline' ? 'clock' : 'edit'} size={14} />
+                  <div className={`timeline__dot${kind === 'create' ? ' timeline__dot--accent' : (kind === 'state' && isResuelto) ? ' timeline__dot--success' : ''}`}>
+                    <Icon name={kind === 'create' ? 'flag' : kind === 'state' ? 'activity' : kind === 'deadline' ? 'clock' : 'edit'} size={14} />
                   </div>
                   <div className="timeline__body">
                     <div className="timeline__head">
-                      <span className="timeline__actor">{h.actor}</span>
-                      <span className="timeline__action">{h.action}</span>
+                      <span className="timeline__actor">{actor}</span>
+                      <span className="timeline__action">{action}</span>
                       {h.from && h.to && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-xs)' }}>
                           <code style={{ background: 'var(--bg-2)', padding: '1px 6px', borderRadius: 3, fontFamily: 'Geist Mono', color: 'var(--fg-muted)' }}>{h.from}</code>
@@ -572,12 +677,13 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
                           <code style={{ background: 'var(--accent-soft)', padding: '1px 6px', borderRadius: 3, fontFamily: 'Geist Mono', color: 'var(--accent)' }}>{h.to}</code>
                         </span>
                       )}
-                      <span className="timeline__time mono">{h.time}</span>
+                      <span className="timeline__time mono">{time}</span>
                     </div>
-                    {h.note && <div className="timeline__note">{h.note}</div>}
+                    {note && <div className="timeline__note">{note}</div>}
                   </div>
                 </div>
-              ))}
+                )
+              })}
               <div style={{ marginTop: 6, padding: 14, border: '1px dashed var(--border-strong)', borderRadius: 8 }}>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-muted)', marginBottom: 8 }}>Agregar nota al historial</div>
                 <textarea className="textarea" placeholder="Escribe una nota auditable…" style={{ minHeight: 60 }} value={nota} onChange={(e) => setNota(e.target.value)} />
@@ -593,7 +699,12 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
           {tab === 'fotos' && (
             <div className="photo-grid">
               {(inc.imagenes ?? []).map((src, i) => (
-                <div key={i} className="photo" style={{ backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: 'auto', height: 160 }} />
+                <div
+                  key={i}
+                  className="photo"
+                  style={{ backgroundImage: `url(${src})`, backgroundSize: 'cover', backgroundPosition: 'center', aspectRatio: 'auto', height: 160, cursor: 'zoom-in' }}
+                  onClick={() => src && setLightboxImg(src)}
+                />
               ))}
               {(inc.imagenes?.length ?? 0) === 0 && <div className="empty" style={{ gridColumn: '1/-1' }}>Sin fotos adjuntas</div>}
             </div>
@@ -610,6 +721,24 @@ const IncidenciaDetail: React.FC<IncidenciaDetailProps> = ({ inc, onClose, onUpd
           )}
         </div>
       </aside>
+
+      {lightboxImg && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setLightboxImg(null)}
+        >
+          <img
+            src={lightboxImg}
+            alt="Evidencia"
+            style={{ maxWidth: '92vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', fontSize: 22, cursor: 'pointer', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+            onClick={() => setLightboxImg(null)}
+          >×</button>
+        </div>
+      )}
     </>
   )
 }
@@ -682,7 +811,7 @@ export const IncidenciasPage: React.FC = () => {
     <div className="page">
       <div className="page__header">
         <div>
-          <h1 className="page__title">Incidencias</h1>
+          <h1 className="page__title">Incidencias QHSE</h1>
           <div className="page__desc">Registro, seguimiento y resolución</div>
         </div>
         <div className="page__actions">
@@ -834,6 +963,7 @@ export const IncidenciasPage: React.FC = () => {
       {deadlineInc && (
         <ModificarDeadlineModal
           inc={deadlineInc}
+          users={users}
           onClose={() => setDeadlineInc(null)}
           onUpdated={() => { triggerReload(); setDeadlineInc(null) }}
         />

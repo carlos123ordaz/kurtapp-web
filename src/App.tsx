@@ -19,7 +19,7 @@ import type { PageId } from './types'
 const PAGE_META: Record<PageId, { title: string; sub: string | null }> = {
   dashboard: { title: 'Resumen', sub: null },
   asistencia: { title: 'Asistencia', sub: 'Resumen diario' },
-  incidencias: { title: 'Incidencias', sub: 'Todas' },
+  incidencias: { title: 'Incidencias QHSE', sub: 'Todas' },
   sedes: { title: 'Sedes', sub: 'Mapa interactivo' },
   usuarios: { title: 'Usuarios', sub: 'Directorio' },
   schedule: { title: 'Control de actividades', sub: 'Calendario mensual' },

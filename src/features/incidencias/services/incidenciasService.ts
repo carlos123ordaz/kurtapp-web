@@ -62,6 +62,12 @@ const incidenciasService = {
       newDeadline: data.newDeadline,
       notasDeadline: data.notasDeadline,
     }).then((r) => r.data),
+  modificarAsignacion: (id: string, data: { asigned?: string | null; newDeadline?: Date; notas?: string }) =>
+    api.put(`/incidencias/${id}`, {
+      ...(data.asigned !== undefined && { asigned: data.asigned }),
+      ...(data.newDeadline !== undefined && { newDeadline: data.newDeadline }),
+      notasDeadline: data.notas ?? '',
+    }).then((r) => r.data),
   addHistorial: (id: string, nota: string) =>
     api.post(`/incidencias/${id}/historial`, { nota }).then((r) => r.data),
 }
