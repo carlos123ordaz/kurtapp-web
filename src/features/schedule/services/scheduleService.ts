@@ -26,6 +26,14 @@ const scheduleService = {
 
   bulkDelete: (ids: string[]) => api.delete('/assignments/bulk', { data: { ids } }),
 
+  partialDelete: (deletions: { entryId: string; datesToRemove: string[] }[]) =>
+    api.delete('/assignments/partial', { data: { deletions } })
+      .then((r) => ((r.data as any).data ?? []) as ScheduleEntry[]),
+
+  searchCaseNumbers: (q: string): Promise<string[]> =>
+    api.get('/assignments/case-numbers', { params: { q } })
+      .then((r) => ((r.data as any).data ?? []) as string[]),
+
   deleteByUserAndMonth: (userId: string, month: number, year: number) =>
     api.delete(`/assignments/user/${userId}/${month}/${year}`),
 }

@@ -154,7 +154,17 @@ export interface ScheduleEntry {
   endDate: string
   month: number
   year: number
-  caseNumber?: string
+}
+
+export interface CaseLabel {
+  _id?: string
+  userId: string
+  areaId?: string
+  startDate: string
+  endDate: string
+  month: number
+  year: number
+  caseNumber: string
 }
 
 export type PageId = 'dashboard' | 'asistencia' | 'incidencias' | 'sedes' | 'usuarios' | 'schedule' | 'roles' | 'vacaciones' | 'cotizaciones'
