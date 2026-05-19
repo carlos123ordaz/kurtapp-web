@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import '../cotizaciones.css'
-import type { LineItem, HeaderState, AnexoState, StaffMember } from '../types'
+import type { LineItem, HeaderState, AnexoState, StaffMember, QuotationListItem, OfferType, Quotation } from '../types'
 import {
   apiGetQuotations, apiGetQuotation, apiCreateQuotation, apiUpdateQuotation,
   apiGenerateReference, apiGetStaff,
@@ -163,7 +163,7 @@ export function CotizacionesPage() {
     const h = defaultHeader()
     try {
       const ref = await apiGenerateReference()
-      h.offerNo = ref
+      h.offerNo = ref.reference
     } catch { /* use empty */ }
     setHeader(h)
     setLines([])
@@ -197,12 +197,12 @@ export function CotizacionesPage() {
     try {
       const payload = {
         reference: header.offerNo,
-        revision: parseInt(header.rev.replace('Rev.', '')) || 0,
+        revision: String(parseInt(header.rev.replace('Rev.', '')) || 0),
         issue_date: header.fecha,
         validity_days: header.validez,
         language: header.idioma,
         currency: header.moneda,
-        offer_type: header.tipoOferta,
+        offer_type: header.tipoOferta as OfferType,
         category: header.tipoCategoria,
         client_type: header.tipoCliente,
         client_name: header.cliente,
@@ -227,10 +227,10 @@ export function CotizacionesPage() {
         sections: mapLinesToSections(lines),
       }
       if (editingId) {
-        await apiUpdateQuotation(editingId, payload)
+        await apiUpdateQuotation(editingId, payload as unknown as Partial<Quotation>)
         showToast('Cotización actualizada')
       } else {
-        const created = await apiCreateQuotation(payload)
+        const created = await apiCreateQuotation(payload as unknown as Partial<Quotation>)
         setEditingId(created._id)
         showToast('Cotización guardada')
       }

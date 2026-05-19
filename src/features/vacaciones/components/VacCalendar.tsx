@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Icon } from '../../../components/ui'
 import {
-  TIPOS, getTipo, fmtDate,
+  TIPOS, getTipo,
   daysInMonth, isoDate, MESES_ES, DIAS_ES,
   type Solicitud, type VacEmployee, type VacArea,
 } from '../data/vacacionesData'
-import { VacAvatar, TipoChip } from './VacShared'
+import { VacAvatar } from './VacShared'
 
 interface Props {
   solicitudes: Solicitud[]

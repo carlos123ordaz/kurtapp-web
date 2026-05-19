@@ -1,4 +1,3 @@
-import React from 'react'
 import { Icon } from '../../../components/ui'
 import { TIPOS, MESES_ES, type Solicitud, type VacEmployee, type VacArea } from '../data/vacacionesData'
 import { EmpCell, KPICard, SaldoBar } from './VacShared'

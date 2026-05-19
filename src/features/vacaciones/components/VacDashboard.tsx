@@ -1,7 +1,6 @@
-import React from 'react'
 import { Icon } from '../../../components/ui'
 import {
-  TIPOS, getEmp, getTipo, fmtDate, addDays, isoDate,
+  getEmp, fmtDate, addDays, isoDate,
   calcDisponible, cumplioPrimerAnio,
   type Solicitud, type VacEmployee,
 } from '../data/vacacionesData'

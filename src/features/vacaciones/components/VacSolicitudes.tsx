@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Icon } from '../../../components/ui'
 import { TIPOS, getEmp, fmtDate, fmtDias, type Solicitud, type VacEmployee } from '../data/vacacionesData'
-import { EmpCell, VacAvatar, TipoChip, StatusChip } from './VacShared'
+import { EmpCell, VacAvatar, TipoChip } from './VacShared'
 
 const PAGE_SIZE = 10
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import type { LineItem, HeaderState, AnexoState } from '../types'
 import { DEPARTMENTS } from '../data/cotizacionesData'
 import { brandById } from '../data/cotizacionesData'
@@ -23,7 +23,7 @@ function toOfferCurrency(v: number, ccy: string, moneda: string, tcEur: number, 
   return v
 }
 
-export function ScreenResumen({ lines, header, anexos }: Props) {
+export function ScreenResumen({ lines, header }: Props) {
   const defaultCondiciones = `1. Validez de la oferta: ${header.validez || 30} días calendario desde la fecha de emisión.
 2. Forma de pago: ${header.condPago || '50% adelanto contra orden de compra, 50% contra entrega'}.
 3. Plazo de entrega: ${header.condEntrega || '8 a 12 semanas desde la confirmación'}.
@@ -140,7 +140,7 @@ export function ScreenResumen({ lines, header, anexos }: Props) {
                   <div className="cot-rt-row" key={g.brand?.id ?? g.lines[0]?.brand_code}>
                     <div>
                       {g.brand
-                        ? <BrandChip brand={g.brand} size="md"/>
+                        ? <BrandChip brandId={g.brand?.id ?? ''} size="md"/>
                         : <span className="mono" style={{ fontSize: 12 }}>{g.lines[0]?.brand_code}</span>
                       }
                     </div>
@@ -198,7 +198,6 @@ export function ScreenResumen({ lines, header, anexos }: Props) {
               {byDept.map((d) => {
                 const share = subtotal > 0 ? (d.total / subtotal) * 100 : 0
                 const dInfo = DEPARTMENTS.find((dd) => dd.id === d.dept)
-                const respId = header.responsables[d.dept]
                 return (
                   <div className="cot-dept-card" key={d.dept}>
                     <div className="cot-dept-card-hd">

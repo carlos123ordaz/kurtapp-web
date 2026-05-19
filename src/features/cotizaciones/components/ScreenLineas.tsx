@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useRef, useEffect, Fragment } from 'react'
+import { useState, useMemo, useRef, useEffect, Fragment } from 'react'
 import type { LineItem, HeaderState, CotCurrency, ItemType } from '../types'
-import { BRANDS, FAMILIES, CATALOG, brandById, familyById, skuLookup } from '../data/cotizacionesData'
+import { BRANDS, FAMILIES, CATALOG, brandById, familyById } from '../data/cotizacionesData'
 import type { CatalogItem } from '../data/cotizacionesData'
 import {
-  I, CotBtn, CotBadge, BrandChip, fmtMoney, fmtPct, lineMath,
+  I, CotBtn, CotBadge, BrandChip, fmtMoney, lineMath,
 } from './CotShared'
 
 // ─── Catalog Modal ─────────────────────────────────────────────────────────────

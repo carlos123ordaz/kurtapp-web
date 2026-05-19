@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Icon } from '../../../components/ui'
 import { TIPOS, fmtDateLong, type VacArea } from '../data/vacacionesData'
 import {

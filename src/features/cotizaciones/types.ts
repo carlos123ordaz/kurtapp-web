@@ -153,9 +153,13 @@ export interface Quotation {
 export interface QuotationListItem {
   _id: string
   offer_number: string
+  reference?: string
   revision: string
   full_reference: string
   client_name: string
+  project_name?: string
+  currency?: CotCurrency
+  issue_date?: string
   prepared_by: StaffRole
   responsible: StaffRole
   status: QuotationStatus

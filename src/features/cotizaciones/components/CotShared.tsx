@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { StaffMember } from '../types'
-import { brandById, familyById, skuLookup } from '../data/cotizacionesData'
+import { brandById, skuLookup } from '../data/cotizacionesData'
 import type { LineItem } from '../types'
 
 // ─── SVG Icon ────────────────────────────────────────────────────────────────
@@ -64,9 +64,9 @@ export const I = {
 interface BtnProps {
   kind?: 'primary' | 'ghost' | 'default' | 'danger'
   size?: 'md' | 'sm'
-  icon?: (p: Partial<IconProps>) => JSX.Element
+  icon?: (p: Partial<IconProps>) => React.ReactElement
   children?: React.ReactNode
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
   disabled?: boolean
   title?: string
   style?: React.CSSProperties

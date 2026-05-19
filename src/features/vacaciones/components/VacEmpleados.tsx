@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Icon } from '../../../components/ui'
 import {
   MESES_ES,
@@ -6,7 +6,7 @@ import {
   calcDisponible, cumplioPrimerAnio, fmtDias,
   type Solicitud, type VacEmployee, type VacArea,
 } from '../data/vacacionesData'
-import { VacAvatar, EmpCell, TipoChip, StatusChip, SaldoBar, type VacView } from './VacShared'
+import { VacAvatar, EmpCell, TipoChip, StatusChip, SaldoBar } from './VacShared'
 
 // ─── Employee list ────────────────────────────────────────────────────────────
 interface ListProps {

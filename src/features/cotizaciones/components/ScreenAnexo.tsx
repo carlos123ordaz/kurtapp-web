@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import type { LineItem, AnexoState, AnexoRow } from '../types'
-import { HH_TARIFFS, SEED_ANNEX, skuLookup } from '../data/cotizacionesData'
+import { HH_TARIFFS, SEED_ANNEX } from '../data/cotizacionesData'
 import { I, CotBtn, CotBadge, CotField, CotInput, fmtMoney } from './CotShared'
 
 interface Props {

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { Icon } from '../../../components/ui'
 import { type VacEmployee, type TipoAusencia, getTipo, initials } from '../data/vacacionesData'
 

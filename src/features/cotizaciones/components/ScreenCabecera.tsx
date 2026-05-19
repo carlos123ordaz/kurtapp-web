@@ -1,9 +1,8 @@
-import React from 'react'
 import type { HeaderState, StaffMember } from '../types'
 import { DEPARTMENTS } from '../data/cotizacionesData'
 import {
   I, CotField, CotInput, CotSelect, CotSeg, CotBadge, CotBtn,
-  PersonPicker, CotAvatar, fmtMoney,
+  PersonPicker, CotAvatar,
 } from './CotShared'
 
 interface Props {
