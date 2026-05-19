@@ -1118,7 +1118,7 @@ export const SchedulePage: React.FC = () => {
 
                           return (
                             <td key={d}
-                              style={{ padding: '0 2px 2px', background: isWk ? 'oklch(0.97 0.004 250)' : undefined }}
+                              style={{ padding: '1px 2px', background: isWk ? 'oklch(0.97 0.004 250)' : undefined }}
                               onMouseDown={() => { if (mode !== 'case') handleCellMouseDown(u, d) }}
                               onMouseEnter={(e) => handleCellMouseEnter(u, d, e)}
                               onMouseUp={(ev) => { if (mode !== 'case') handleCellMouseUp(u, d, ev) }}
