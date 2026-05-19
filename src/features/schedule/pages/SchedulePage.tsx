@@ -8,6 +8,7 @@ import { useAuth } from '../../../context/AuthContext'
 
 const MES_NOMBRES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DIA_NOMBRES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const DIA_LETRAS = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
 
 type ScheduleMap = Record<string, ScheduleEntry>
 
@@ -52,49 +53,30 @@ const WorkTypesModal: React.FC<WorkTypesModalProps> = ({ workTypes, areaId, onCl
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  const resetForm = () => {
-    setCode(''); setLabel(''); setColor('#2563EB'); setEditingCode(null); setError(null)
-  }
+  const resetForm = () => { setCode(''); setLabel(''); setColor('#2563EB'); setEditingCode(null); setError(null) }
 
   const handleEdit = (wt: WorkType) => {
-    setEditingCode(wt.code)
-    setCode(wt.code)
-    setLabel(wt.label)
-    setColor(wt.color)
-    setError(null)
+    setEditingCode(wt.code); setCode(wt.code); setLabel(wt.label); setColor(wt.color); setError(null)
   }
 
   const handleSave = async () => {
     if (!code || !label || !color) { setError('Completa todos los campos.'); return }
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     try {
-      if (editingCode) {
-        await workTypeService.update(editingCode, { label, color, areaId })
-      } else {
-        await workTypeService.create({ code: code.toUpperCase(), label, color, areaId })
-      }
-      onSaved()
-      resetForm()
-    } catch {
-      setError('Error al guardar el tipo de actividad.')
-    } finally {
-      setLoading(false)
-    }
+      if (editingCode) await workTypeService.update(editingCode, { label, color, areaId })
+      else await workTypeService.create({ code: code.toUpperCase(), label, color, areaId })
+      onSaved(); resetForm()
+    } catch { setError('Error al guardar el tipo de actividad.') }
+    finally { setLoading(false) }
   }
 
   const handleDelete = async (wtCode: string) => {
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     try {
       await workTypeService.delete(wtCode, areaId)
-      onSaved()
-      setConfirmDelete(null)
-    } catch {
-      setError('Error al eliminar el tipo de actividad.')
-    } finally {
-      setLoading(false)
-    }
+      onSaved(); setConfirmDelete(null)
+    } catch { setError('Error al eliminar el tipo de actividad.') }
+    finally { setLoading(false) }
   }
 
   return (
@@ -122,16 +104,10 @@ const WorkTypesModal: React.FC<WorkTypesModalProps> = ({ workTypes, areaId, onCl
               </thead>
               <tbody>
                 {workTypes.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--fg-muted)', padding: '20px 0' }}>
-                      No hay tipos configurados.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--fg-muted)', padding: '20px 0' }}>No hay tipos configurados.</td></tr>
                 ) : workTypes.map((wt) => (
                   <tr key={wt.code}>
-                    <td>
-                      <span className="mono" style={{ fontWeight: 700, fontSize: 12 }}>{wt.code}</span>
-                    </td>
+                    <td><span className="mono" style={{ fontWeight: 700, fontSize: 12 }}>{wt.code}</span></td>
                     <td>{wt.label}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -141,17 +117,8 @@ const WorkTypesModal: React.FC<WorkTypesModalProps> = ({ workTypes, areaId, onCl
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                        <button className="btn btn--ghost btn--icon" onClick={() => handleEdit(wt)} title="Editar">
-                          <Icon name="edit" size={14} />
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--icon"
-                          onClick={() => setConfirmDelete(wt.code)}
-                          title="Eliminar"
-                          style={{ color: 'var(--danger)' }}
-                        >
-                          <Icon name="trash" size={14} />
-                        </button>
+                        <button className="btn btn--ghost btn--icon" onClick={() => handleEdit(wt)} title="Editar"><Icon name="edit" size={14} /></button>
+                        <button className="btn btn--ghost btn--icon" onClick={() => setConfirmDelete(wt.code)} title="Eliminar" style={{ color: 'var(--danger)' }}><Icon name="trash" size={14} /></button>
                       </div>
                     </td>
                   </tr>
@@ -178,9 +145,7 @@ const WorkTypesModal: React.FC<WorkTypesModalProps> = ({ workTypes, areaId, onCl
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button className="btn btn--primary" onClick={handleSave} disabled={loading}>
-                {loading ? 'Guardando…' : editingCode ? 'Actualizar' : 'Agregar'}
-              </button>
+              <button className="btn btn--primary" onClick={handleSave} disabled={loading}>{loading ? 'Guardando…' : editingCode ? 'Actualizar' : 'Agregar'}</button>
               {editingCode && <button className="btn" onClick={resetForm}>Cancelar</button>}
             </div>
           </div>
@@ -193,9 +158,7 @@ const WorkTypesModal: React.FC<WorkTypesModalProps> = ({ workTypes, areaId, onCl
       {confirmDelete && (
         <div className="modal-overlay" style={{ zIndex: 52 }} onClick={(e) => { e.stopPropagation(); setConfirmDelete(null) }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360 }}>
-            <div className="modal__header">
-              <h2 className="modal__title">Eliminar tipo</h2>
-            </div>
+            <div className="modal__header"><h2 className="modal__title">Eliminar tipo</h2></div>
             <div className="modal__body">
               <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--fg-2)', margin: 0 }}>
                 ¿Seguro que deseas eliminar el tipo <strong>{confirmDelete}</strong>? Esta acción no se puede deshacer.
@@ -226,6 +189,8 @@ interface AssignModalProps {
   preUserId?: string
   preDay?: number
   preDayEnd?: number
+  preWorkTypeCode?: string
+  preCaseNumber?: string
   existingEntry?: ScheduleEntry
   areaId?: string
   onClose: () => void
@@ -233,18 +198,22 @@ interface AssignModalProps {
 }
 
 const AssignModal: React.FC<AssignModalProps> = ({
-  users, workTypes, year, month, preUserId, preDay, preDayEnd, existingEntry, areaId, onClose, onSaved,
+  users, workTypes, year, month, preUserId, preDay, preDayEnd,
+  preWorkTypeCode, preCaseNumber, existingEntry, areaId, onClose, onSaved,
 }) => {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   const [userId, setUserId] = useState(preUserId ?? existingEntry?.userId ?? '')
-  const [workTypeCode, setWorkTypeCode] = useState(existingEntry?.workTypeCode ?? workTypes[0]?.code ?? '')
+  const [workTypeCode, setWorkTypeCode] = useState(
+    preWorkTypeCode ?? existingEntry?.workTypeCode ?? workTypes[0]?.code ?? ''
+  )
   const [startDay, setStartDay] = useState(
     preDay ?? (existingEntry ? new Date(existingEntry.startDate).getDate() : 1)
   )
   const [endDay, setEndDay] = useState(
     preDayEnd ?? preDay ?? (existingEntry ? new Date(existingEntry.endDate).getDate() : 1)
   )
+  const [caseNumber, setCaseNumber] = useState(preCaseNumber ?? existingEntry?.caseNumber ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -256,8 +225,7 @@ const AssignModal: React.FC<AssignModalProps> = ({
   const handleSave = async () => {
     if (!userId || !workTypeCode) { setError('Completa todos los campos.'); return }
     if (startDay > endDay) { setError('El día inicio no puede ser mayor al día fin.'); return }
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     try {
       const payload = {
         userId,
@@ -267,17 +235,15 @@ const AssignModal: React.FC<AssignModalProps> = ({
         endDate: new Date(year, month, endDay).toISOString(),
         month,
         year,
+        caseNumber: caseNumber.trim(),
       }
       const saved = existingEntry?._id
         ? await scheduleService.update(existingEntry._id, payload)
         : await scheduleService.create(payload)
       onSaved({ type: 'upsert', entry: { ...saved, userId: normalizeUserId(saved.userId) } })
       onClose()
-    } catch {
-      setError('Error al guardar la actividad.')
-    } finally {
-      setLoading(false)
-    }
+    } catch { setError('Error al guardar la actividad.') }
+    finally { setLoading(false) }
   }
 
   const handleDelete = async () => {
@@ -287,9 +253,7 @@ const AssignModal: React.FC<AssignModalProps> = ({
       await scheduleService.delete(existingEntry._id)
       onSaved({ type: 'delete', id: existingEntry._id })
       onClose()
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const isRange = startDay !== endDay
@@ -300,21 +264,15 @@ const AssignModal: React.FC<AssignModalProps> = ({
         <div className="modal__header">
           <div>
             <h2 className="modal__title">{existingEntry ? 'Editar asignación' : 'Asignar trabajo'}</h2>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)', marginTop: 2 }}>
-              {MES_NOMBRES[month]} {year}
-            </div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)', marginTop: 2 }}>{MES_NOMBRES[month]} {year}</div>
           </div>
           <button className="btn btn--ghost btn--icon" onClick={onClose}><Icon name="close" size={18} /></button>
         </div>
 
-        {/* Date range banner */}
         <div style={{ padding: '10px 24px', background: 'var(--accent-soft)', borderBottom: '1px solid var(--border-soft)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Icon name="calendar" size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
           <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--accent)', fontWeight: 500 }}>
-            {isRange
-              ? `Del ${formatDay(startDay)} al ${formatDay(endDay)}`
-              : formatDay(startDay)
-            }
+            {isRange ? `Del ${formatDay(startDay)} al ${formatDay(endDay)}` : formatDay(startDay)}
           </span>
         </div>
 
@@ -353,6 +311,19 @@ const AssignModal: React.FC<AssignModalProps> = ({
                 <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--fg-muted)' }}>No hay tipos de trabajo configurados.</div>
               )}
             </div>
+          </div>
+
+          <div className="field">
+            <label className="field__label">
+              N° de caso
+              <span style={{ fontWeight: 400, color: 'var(--fg-muted)', marginLeft: 4 }}>(opcional)</span>
+            </label>
+            <input
+              className="input"
+              value={caseNumber}
+              onChange={(e) => setCaseNumber(e.target.value)}
+              placeholder="Ej. 2025-001"
+            />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -407,6 +378,8 @@ interface ModalState {
   preUserId?: string
   preDay?: number
   preDayEnd?: number
+  preWorkTypeCode?: string
+  preCaseNumber?: string
   existingEntry?: ScheduleEntry
 }
 
@@ -431,6 +404,12 @@ export const SchedulePage: React.FC = () => {
   const [dragSel, setDragSel] = useState<DragSelection | null>(null)
   const dragRef = useRef<DragSelection | null>(null)
 
+  // Delete mode
+  const [deleteMode, setDeleteMode] = useState(false)
+  const [deleteSelected, setDeleteSelected] = useState<Set<string>>(new Set())
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+
   const userAreas = useMemo(() => (authUser?.areas ?? []) as Area[], [authUser])
   const selectedAreaId = userAreas[0]?._id
 
@@ -443,7 +422,6 @@ export const SchedulePage: React.FC = () => {
       ])
       setUsers(u)
       setWorkTypes(wt)
-
       if (selectedAreaId) {
         const e = await scheduleService.getByMonth(year, month, selectedAreaId)
         setEntries(e)
@@ -457,15 +435,24 @@ export const SchedulePage: React.FC = () => {
 
   useEffect(() => { load() }, [load])
 
-  // Cancel drag if mouse is released outside the table
   useEffect(() => {
-    const cancel = () => {
-      dragRef.current = null
-      setDragSel(null)
-    }
+    const cancel = () => { dragRef.current = null; setDragSel(null) }
     window.addEventListener('mouseup', cancel)
     return () => window.removeEventListener('mouseup', cancel)
   }, [])
+
+  // Escape exits delete mode
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && deleteMode) {
+        setDeleteMode(false)
+        setDeleteSelected(new Set())
+        setConfirmBulkDelete(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [deleteMode])
 
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
@@ -482,62 +469,115 @@ export const SchedulePage: React.FC = () => {
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear((y) => y + 1) } else setMonth((m) => m + 1) }
 
   const scheduleMap = useMemo(() => buildScheduleMap(entries), [entries])
-  const workTypeMap = useMemo(
-    () => Object.fromEntries(workTypes.map((wt) => [wt.code, wt])),
-    [workTypes]
-  )
+  const workTypeMap = useMemo(() => Object.fromEntries(workTypes.map((wt) => [wt.code, wt])), [workTypes])
 
   const getEntry = (uid: string, day: number) =>
     scheduleMap[`${month}-${year}-${day}-${uid}`] ?? null
 
-  const handleCellMouseDown = (u: User, day: number, isWk: boolean) => {
-    if (isWk) return
+  // Collect all entry IDs in a drag range for a user
+  const collectEntryIdsInRange = (userId: string, start: number, end: number): string[] => {
+    const ids: string[] = []
+    const seen = new Set<string>()
+    for (let d = start; d <= end; d++) {
+      const entry = getEntry(userId, d)
+      if (entry?._id && !seen.has(entry._id)) {
+        seen.add(entry._id)
+        ids.push(entry._id)
+      }
+    }
+    return ids
+  }
+
+  const handleCellMouseDown = (u: User, day: number) => {
     const sel = { userId: u._id, startDay: day, endDay: day }
     dragRef.current = sel
     setDragSel(sel)
   }
 
-  const handleCellMouseEnter = (u: User, day: number, isWk: boolean, e: React.MouseEvent) => {
-    if (!dragRef.current || e.buttons !== 1 || isWk || u._id !== dragRef.current.userId) return
+  const handleCellMouseEnter = (u: User, day: number, e: React.MouseEvent) => {
+    if (!dragRef.current || e.buttons !== 1 || u._id !== dragRef.current.userId) return
     const sel = { ...dragRef.current, endDay: day }
     dragRef.current = sel
     setDragSel(sel)
   }
 
-  const handleCellMouseUp = (u: User, _day: number, isWk: boolean) => {
+  const handleCellMouseUp = (u: User, _day: number) => {
     if (!dragRef.current) return
     const { userId, startDay, endDay } = dragRef.current
     dragRef.current = null
     setDragSel(null)
-    if (isWk || u._id !== userId) return
+    if (u._id !== userId) return
 
     const actualStart = Math.min(startDay, endDay)
     const actualEnd = Math.max(startDay, endDay)
+
+    if (deleteMode) {
+      const ids = collectEntryIdsInRange(userId, actualStart, actualEnd)
+      if (ids.length > 0) {
+        setDeleteSelected((prev) => {
+          const next = new Set(prev)
+          ids.forEach((id) => next.add(id))
+          return next
+        })
+      }
+      return
+    }
 
     if (actualStart === actualEnd) {
       const existing = getEntry(userId, actualStart) ?? undefined
       setModal({ preUserId: userId, preDay: actualStart, existingEntry: existing })
     } else {
-      setModal({ preUserId: userId, preDay: actualStart, preDayEnd: actualEnd })
+      // Detect existing entries in range to pre-populate
+      const existingCodes = new Set<string>()
+      let firstEntry: ScheduleEntry | undefined
+      for (let d = actualStart; d <= actualEnd; d++) {
+        const entry = getEntry(userId, d)
+        if (entry) { existingCodes.add(entry.workTypeCode); if (!firstEntry) firstEntry = entry }
+      }
+      const preWorkTypeCode = existingCodes.size === 1 ? [...existingCodes][0] : undefined
+      const preCaseNumber = existingCodes.size === 1 ? firstEntry?.caseNumber : undefined
+      setModal({ preUserId: userId, preDay: actualStart, preDayEnd: actualEnd, preWorkTypeCode, preCaseNumber })
     }
   }
 
   const handleAssignSaved = useCallback((result: SaveResult) => {
     if (result.type === 'upsert') {
       const entry = result.entry
+      const newStart = new Date(entry.startDate).getTime()
+      const newEnd = new Date(entry.endDate).getTime()
       setEntries((prev) => {
-        const idx = prev.findIndex((e) => e._id === entry._id)
-        if (idx >= 0) {
-          const next = [...prev]
-          next[idx] = entry
-          return next
-        }
-        return [...prev, entry]
+        // Remove overlapping entries for same user (backend already deleted them in DB)
+        const filtered = prev.filter((e) => {
+          if (normalizeUserId(e.userId) !== entry.userId) return true
+          if (e._id === entry._id) return false
+          const eStart = new Date(e.startDate).getTime()
+          const eEnd = new Date(e.endDate).getTime()
+          return eEnd < newStart || eStart > newEnd
+        })
+        const idx = filtered.findIndex((e) => e._id === entry._id)
+        if (idx >= 0) { const next = [...filtered]; next[idx] = entry; return next }
+        return [...filtered, entry]
       })
     } else {
       setEntries((prev) => prev.filter((e) => e._id !== result.id))
     }
   }, [])
+
+  const handleBulkDelete = async () => {
+    if (deleteSelected.size === 0) return
+    setDeleteLoading(true)
+    try {
+      await scheduleService.bulkDelete([...deleteSelected])
+      setEntries((prev) => prev.filter((e) => !e._id || !deleteSelected.has(e._id)))
+      setDeleteSelected(new Set())
+      setConfirmBulkDelete(false)
+      setDeleteMode(false)
+    } catch {
+      // keep selection on error
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   const handleWorkTypesSaved = async () => {
     if (!selectedAreaId) return
@@ -545,8 +585,17 @@ export const SchedulePage: React.FC = () => {
     setWorkTypes(wt)
   }
 
+  const toggleDeleteMode = () => {
+    setDeleteMode((v) => !v)
+    setDeleteSelected(new Set())
+    setConfirmBulkDelete(false)
+  }
+
   return (
-    <div className="page" onMouseLeave={() => { dragRef.current = null; setDragSel(null) }}>
+    <div
+      className="page"
+      onMouseLeave={() => { dragRef.current = null; setDragSel(null) }}
+    >
       <div className="page__header">
         <div>
           <h1 className="page__title">Control de actividades</h1>
@@ -577,6 +626,16 @@ export const SchedulePage: React.FC = () => {
               <span style={{ fontWeight: 500, color: 'var(--fg)' }}>{userAreas[0].name}</span>
             </div>
           )}
+
+          <button
+            className={`btn${deleteMode ? ' btn--danger' : ''}`}
+            onClick={toggleDeleteMode}
+            title={deleteMode ? 'Salir del modo eliminar (Esc)' : 'Activar modo eliminar'}
+            style={deleteMode ? { background: 'var(--danger)', color: 'white' } : undefined}
+          >
+            <Icon name="trash" size={14} />
+            {deleteMode ? 'Salir' : 'Seleccionar'}
+          </button>
 
           <Button kind="ghost" icon="settings" onClick={() => setShowWorkTypesModal(true)}>Actividades</Button>
         </div>
@@ -612,10 +671,22 @@ export const SchedulePage: React.FC = () => {
           </div>
         </div>
 
-        {!selectedAreaId ? (
-          <div className="empty" style={{ padding: '40px 0' }}>
-            Selecciona un área para ver las asignaciones.
+        {deleteMode && (
+          <div style={{
+            margin: '0 0 0', padding: '8px 20px',
+            background: 'var(--danger-soft)', borderBottom: '1px solid var(--danger-border)',
+            fontSize: 'var(--fs-sm)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <Icon name="trash" size={13} />
+            <span>Modo selección activo — arrastra sobre las celdas para seleccionar actividades. Presiona <kbd style={{ padding: '1px 5px', borderRadius: 3, border: '1px solid var(--danger-border)', fontFamily: 'monospace', fontSize: 11 }}>Esc</kbd> para salir.</span>
+            {deleteSelected.size > 0 && (
+              <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{deleteSelected.size} seleccionada{deleteSelected.size !== 1 ? 's' : ''}</span>
+            )}
           </div>
+        )}
+
+        {!selectedAreaId ? (
+          <div className="empty" style={{ padding: '40px 0' }}>Selecciona un área para ver las asignaciones.</div>
         ) : loading ? (
           <div className="empty">Cargando datos…</div>
         ) : (
@@ -623,7 +694,7 @@ export const SchedulePage: React.FC = () => {
             <table className="tbl" style={{ minWidth: 1200 }}>
               <thead>
                 <tr>
-                  <th style={{ width: 220, position: 'sticky', left: 0, background: 'var(--surface-2)', zIndex: 1 }}>Empleado</th>
+                  <th style={{ width: 200, position: 'sticky', left: 0, background: 'var(--surface-2)', zIndex: 1 }}>Empleado</th>
                   {days.map((d) => {
                     const wd = new Date(year, month, d).getDay()
                     const isWk = wd === 0 || wd === 6
@@ -631,12 +702,10 @@ export const SchedulePage: React.FC = () => {
                     return (
                       <th key={d} style={{
                         minWidth: 36, textAlign: 'center', padding: '8px 4px',
-                        background: isToday ? 'var(--accent-soft)' : isWk ? 'oklch(0.97 0.005 250)' : undefined,
-                        color: isToday ? 'var(--accent)' : undefined,
+                        background: isToday ? 'var(--accent-soft)' : isWk ? 'oklch(0.96 0.006 250)' : undefined,
+                        color: isToday ? 'var(--accent)' : isWk ? 'var(--fg-muted)' : undefined,
                       }}>
-                        <div style={{ fontSize: 10, color: isToday ? 'var(--accent)' : 'var(--fg-faint)', fontWeight: 500 }}>
-                          {['D', 'L', 'M', 'X', 'J', 'V', 'S'][wd]}
-                        </div>
+                        <div style={{ fontSize: 10, fontWeight: 500 }}>{DIA_LETRAS[wd]}</div>
                         <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600 }}>{d}</div>
                       </th>
                     )
@@ -653,56 +722,82 @@ export const SchedulePage: React.FC = () => {
                 ) : filteredUsers.map((u, ui) => (
                   <tr key={u._id}>
                     <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
-                      <NameCell name={`${u.name} ${u.lname}`} sub={u.position} avatarIdx={ui} />
+                      <NameCell name={`${u.name} ${u.lname}`} avatarIdx={ui} />
                     </td>
                     {days.map((d) => {
                       const wd = new Date(year, month, d).getDay()
                       const isWk = wd === 0 || wd === 6
                       const entry = getEntry(u._id, d)
                       const wt = entry ? workTypeMap[entry.workTypeCode] : null
+                      const isDeleteSel = entry?._id ? deleteSelected.has(entry._id) : false
 
                       const isDragSelected = dragSel !== null &&
                         u._id === dragSel.userId &&
                         d >= Math.min(dragSel.startDay, dragSel.endDay) &&
                         d <= Math.max(dragSel.startDay, dragSel.endDay)
 
+                      let bg = 'transparent'
+                      let fg = 'var(--fg-faint)'
+                      if (isDeleteSel) { bg = 'var(--danger)'; fg = 'white' }
+                      else if (isDragSelected && deleteMode) { bg = 'oklch(0.75 0.12 25)'; fg = 'white' }
+                      else if (isDragSelected) { bg = 'var(--accent)'; fg = 'white' }
+                      else if (wt) { bg = wt.color; fg = 'white' }
+
                       return (
                         <td
                           key={d}
-                          style={{ padding: 2, textAlign: 'center', background: isWk ? 'oklch(0.97 0.005 250)' : undefined }}
-                          onMouseDown={() => handleCellMouseDown(u, d, isWk)}
-                          onMouseEnter={(e) => handleCellMouseEnter(u, d, isWk, e)}
-                          onMouseUp={() => handleCellMouseUp(u, d, isWk)}
+                          style={{
+                            padding: 2, textAlign: 'center',
+                            background: isWk ? 'oklch(0.97 0.004 250)' : undefined,
+                          }}
+                          onMouseDown={() => handleCellMouseDown(u, d)}
+                          onMouseEnter={(e) => handleCellMouseEnter(u, d, e)}
+                          onMouseUp={() => handleCellMouseUp(u, d)}
                         >
-                          {!isWk && (
-                            <div
-                              title={wt ? `${wt.code} — ${wt.label}` : 'Clic o arrastra para asignar'}
-                              style={{
-                                background: isDragSelected
-                                  ? 'var(--accent)'
-                                  : wt ? wt.color : 'transparent',
-                                color: isDragSelected || wt ? 'white' : 'var(--fg-faint)',
-                                fontFamily: 'Geist Mono',
-                                fontSize: 10,
-                                fontWeight: 700,
-                                padding: '4px 0',
-                                borderRadius: 3,
-                                opacity: isDragSelected ? 0.85 : wt ? 0.9 : 1,
-                                cursor: 'pointer',
-                                minHeight: 22,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                outline: isDragSelected ? '2px solid var(--accent)' : undefined,
-                                transition: 'background 0.05s',
-                              }}
-                            >
-                              {isDragSelected && !wt
-                                ? <span style={{ fontSize: 8 }}>●</span>
-                                : wt ? wt.code : <span style={{ fontSize: 8, opacity: 0.4 }}>+</span>
-                              }
-                            </div>
-                          )}
+                          <div
+                            title={
+                              wt
+                                ? `${wt.code} — ${wt.label}${entry?.caseNumber ? ` | Caso: ${entry.caseNumber}` : ''}`
+                                : deleteMode ? 'Sin actividad' : 'Clic o arrastra para asignar'
+                            }
+                            style={{
+                              position: 'relative',
+                              background: bg,
+                              color: fg,
+                              fontFamily: 'Geist Mono',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '4px 0',
+                              borderRadius: 3,
+                              opacity: isDragSelected ? 0.9 : isDeleteSel ? 1 : wt ? 0.9 : 1,
+                              cursor: 'pointer',
+                              minHeight: 22,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              outline: isDeleteSel
+                                ? '2px solid var(--danger)'
+                                : isDragSelected && deleteMode
+                                ? '2px solid oklch(0.6 0.18 25)'
+                                : isDragSelected
+                                ? '2px solid var(--accent)'
+                                : undefined,
+                              transition: 'background 0.05s',
+                            }}
+                          >
+                            {isDragSelected && !wt
+                              ? <span style={{ fontSize: 8 }}>●</span>
+                              : wt ? wt.code : <span style={{ fontSize: 8, opacity: 0.3 }}>+</span>
+                            }
+                            {/* Indicator dot when entry has a case number */}
+                            {wt && entry?.caseNumber && (
+                              <span style={{
+                                position: 'absolute', top: 2, right: 2,
+                                width: 4, height: 4, borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.85)',
+                              }} />
+                            )}
+                          </div>
                         </td>
                       )
                     })}
@@ -714,6 +809,56 @@ export const SchedulePage: React.FC = () => {
         )}
       </div>
 
+      {/* Bulk delete action bar */}
+      {deleteMode && deleteSelected.size > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--surface)', border: '1px solid var(--border-strong)',
+          borderRadius: 'var(--radius)', padding: '12px 20px',
+          display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          zIndex: 100,
+        }}>
+          <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500 }}>
+            {deleteSelected.size} actividad{deleteSelected.size !== 1 ? 'es' : ''} seleccionada{deleteSelected.size !== 1 ? 's' : ''}
+          </span>
+          <button
+            className="btn"
+            onClick={() => { setDeleteSelected(new Set()); setConfirmBulkDelete(false) }}
+          >
+            Limpiar selección
+          </button>
+          <button
+            className="btn btn--danger"
+            onClick={() => setConfirmBulkDelete(true)}
+            disabled={deleteLoading}
+          >
+            <Icon name="trash" size={14} />
+            Eliminar selección
+          </button>
+        </div>
+      )}
+
+      {/* Bulk delete confirmation */}
+      {confirmBulkDelete && (
+        <div className="modal-overlay" style={{ zIndex: 102 }} onClick={() => setConfirmBulkDelete(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
+            <div className="modal__header"><h2 className="modal__title">Eliminar actividades</h2></div>
+            <div className="modal__body">
+              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--fg-2)', margin: 0 }}>
+                ¿Confirmas eliminar <strong>{deleteSelected.size} actividad{deleteSelected.size !== 1 ? 'es' : ''}</strong> seleccionada{deleteSelected.size !== 1 ? 's' : ''}? Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div className="modal__footer">
+              <button className="btn" onClick={() => setConfirmBulkDelete(false)}>Cancelar</button>
+              <button className="btn btn--danger" onClick={handleBulkDelete} disabled={deleteLoading}>
+                {deleteLoading ? 'Eliminando…' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modal !== null && (
         <AssignModal
           users={filteredUsers}
@@ -723,6 +868,8 @@ export const SchedulePage: React.FC = () => {
           preUserId={modal.preUserId}
           preDay={modal.preDay}
           preDayEnd={modal.preDayEnd}
+          preWorkTypeCode={modal.preWorkTypeCode}
+          preCaseNumber={modal.preCaseNumber}
           existingEntry={modal.existingEntry}
           areaId={selectedAreaId}
           onClose={() => setModal(null)}

@@ -2,7 +2,6 @@ import api from '../../../config/api'
 import type { ScheduleEntry } from '../../../types'
 
 const scheduleService = {
-  // month is 0-indexed (same as JS Date.getMonth())
   getByMonth: (year: number, month: number, areaId?: string) => {
     if (!areaId) return Promise.resolve([] as ScheduleEntry[])
     return api.get(`/assignments/month/${month}/${year}/${areaId}`).then((r) => {
@@ -24,6 +23,8 @@ const scheduleService = {
     api.put(`/assignments/${id}`, data).then((r) => ((r.data as any).data ?? r.data) as ScheduleEntry),
 
   delete: (id: string) => api.delete(`/assignments/${id}`),
+
+  bulkDelete: (ids: string[]) => api.delete('/assignments/bulk', { data: { ids } }),
 
   deleteByUserAndMonth: (userId: string, month: number, year: number) =>
     api.delete(`/assignments/user/${userId}/${month}/${year}`),
