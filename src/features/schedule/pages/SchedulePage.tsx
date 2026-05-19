@@ -6,6 +6,7 @@ import userService from '../../usuarios/services/userService'
 import scheduleService from '../services/scheduleService'
 import workTypeService from '../services/workTypeService'
 import caseLabelService from '../services/caseLabelService'
+import scheduleOrderService from '../services/scheduleOrderService'
 import { useAuth } from '../../../context/AuthContext'
 
 const MES_NOMBRES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -559,6 +560,10 @@ export const SchedulePage: React.FC = () => {
   const [contextMenu, setContextMenu]                 = useState<{ userId: string; startDay: number; endDay: number; x: number; y: number; hasActivities: boolean } | null>(null)
   const [contextMenuLoading, setContextMenuLoading]   = useState(false)
 
+  const [userOrder, setUserOrder] = useState<string[]>([])
+  const [rowDrag, setRowDrag]     = useState<{ dragId: string; overId: string | null } | null>(null)
+  const rowDragRef = useRef<{ dragId: string; overId: string | null } | null>(null)
+
   const userAreas    = useMemo(() => (authUser?.areas ?? []) as Area[], [authUser])
   const selectedAreaId = userAreas[0]?._id
 
@@ -582,8 +587,62 @@ export const SchedulePage: React.FC = () => {
 
   useEffect(() => { load() }, [load])
 
+  const orderLoadedRef = useRef(false)
+
   useEffect(() => {
-    const cancel = () => { dragRef.current = null; setDragSel(null) }
+    if (!selectedAreaId) return
+    orderLoadedRef.current = false
+    scheduleOrderService.get(selectedAreaId)
+      .then(saved => {
+        setUserOrder(prev => {
+          const base = saved.length ? saved : prev
+          const kept    = base.filter(id => users.some(u => u._id === id))
+          const newOnes = users.filter(u => !base.includes(u._id)).map(u => u._id)
+          return [...kept, ...newOnes]
+        })
+      })
+      .catch(() => {
+        setUserOrder(prev => {
+          const kept    = prev.filter(id => users.some(u => u._id === id))
+          const newOnes = users.filter(u => !prev.includes(u._id)).map(u => u._id)
+          return [...kept, ...newOnes]
+        })
+      })
+      .finally(() => { orderLoadedRef.current = true })
+  }, [users, selectedAreaId])
+
+  const saveOrderDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!orderLoadedRef.current || !selectedAreaId || userOrder.length === 0) return
+    if (saveOrderDebounceRef.current) clearTimeout(saveOrderDebounceRef.current)
+    saveOrderDebounceRef.current = setTimeout(() => {
+      scheduleOrderService.save(selectedAreaId, userOrder).catch(() => {})
+    }, 800)
+    return () => { if (saveOrderDebounceRef.current) clearTimeout(saveOrderDebounceRef.current) }
+  }, [userOrder, selectedAreaId])
+
+  useEffect(() => {
+    const cancel = () => {
+      dragRef.current = null
+      setDragSel(null)
+      if (rowDragRef.current) {
+        const { dragId, overId } = rowDragRef.current
+        rowDragRef.current = null
+        setRowDrag(null)
+        if (overId && dragId !== overId) {
+          setUserOrder(prev => {
+            const order = [...prev]
+            const from  = order.indexOf(dragId)
+            const to    = order.indexOf(overId)
+            if (from === -1 || to === -1) return prev
+            order.splice(from, 1)
+            order.splice(to, 0, dragId)
+            return order
+          })
+        }
+      }
+    }
     window.addEventListener('mouseup', cancel)
     return () => window.removeEventListener('mouseup', cancel)
   }, [])
@@ -601,11 +660,16 @@ export const SchedulePage: React.FC = () => {
   const daysInMonth  = new Date(year, month + 1, 0).getDate()
   const days         = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
-  const filteredUsers = useMemo(() => users.filter((u) => {
-    const matchSearch = !search || `${u.name} ${u.lname}`.toLowerCase().includes(search.toLowerCase())
-    const matchArea   = !selectedAreaId || u.areas?.some((a) => a._id === selectedAreaId)
-    return matchSearch && matchArea
-  }), [users, search, selectedAreaId])
+  const filteredUsers = useMemo(() => {
+    const filtered = users.filter((u) => {
+      const matchSearch = !search || `${u.name} ${u.lname}`.toLowerCase().includes(search.toLowerCase())
+      const matchArea   = !selectedAreaId || u.areas?.some((a) => a._id === selectedAreaId)
+      return matchSearch && matchArea
+    })
+    return userOrder.length
+      ? [...filtered].sort((a, b) => userOrder.indexOf(a._id) - userOrder.indexOf(b._id))
+      : filtered
+  }, [users, search, selectedAreaId, userOrder])
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear((y) => y - 1) } else setMonth((m) => m - 1) }
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear((y) => y + 1) } else setMonth((m) => m + 1) }
@@ -623,6 +687,21 @@ export const SchedulePage: React.FC = () => {
     const keys: string[] = []
     for (let d = s; d <= e; d++) { if (getEntry(uid, d)) keys.push(cellKey(uid, d)) }
     return keys
+  }
+
+  const handleRowDragStart = (userId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const state = { dragId: userId, overId: null }
+    rowDragRef.current = state
+    setRowDrag(state)
+  }
+
+  const handleRowDragOver = (userId: string) => {
+    if (!rowDragRef.current || rowDragRef.current.dragId === userId) return
+    const state = { ...rowDragRef.current, overId: userId }
+    rowDragRef.current = state
+    setRowDrag(state)
   }
 
   const handleCellMouseDown = (u: User, day: number) => {
@@ -932,7 +1011,7 @@ export const SchedulePage: React.FC = () => {
                   return (
                     <React.Fragment key={u._id}>
                       {/* ── Fila de N° de caso (celda por día para drag preciso) ── */}
-                      <tr style={{ height: 0 }}>
+                      <tr style={{ height: 0 }} onMouseEnter={() => handleRowDragOver(u._id)}>
                         <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1, padding: 0 }} />
                         {clGroups.flatMap((g) =>
                           Array.from({ length: g.count }, (_, i) => {
@@ -981,9 +1060,31 @@ export const SchedulePage: React.FC = () => {
                       </tr>
 
                       {/* ── Fila de actividades ── */}
-                      <tr>
+                      <tr
+                        onMouseEnter={() => handleRowDragOver(u._id)}
+                        style={{
+                          opacity:    rowDrag?.dragId === u._id ? 0.45 : 1,
+                          boxShadow:  rowDrag?.overId === u._id ? 'inset 0 2px 0 var(--accent)' : undefined,
+                          transition: 'opacity 0.1s, box-shadow 0.08s',
+                        }}
+                      >
                         <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 1 }}>
-                          <NameCell name={`${u.name} ${u.lname}`} avatarIdx={ui} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span
+                              title="Arrastra para reordenar"
+                              style={{
+                                cursor: rowDrag ? 'grabbing' : 'grab',
+                                color: 'var(--fg-faint)',
+                                fontSize: 13,
+                                lineHeight: 1,
+                                padding: '0 2px',
+                                flexShrink: 0,
+                                userSelect: 'none',
+                              }}
+                              onMouseDown={(e) => handleRowDragStart(u._id, e)}
+                            >⠿</span>
+                            <NameCell name={`${u.name} ${u.lname}`} avatarIdx={ui} />
+                          </div>
                         </td>
                         {days.map((d) => {
                           const wd    = new Date(year, month, d).getDay()
