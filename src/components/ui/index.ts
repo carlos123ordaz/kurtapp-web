@@ -1,0 +1,5 @@
+export { Icon } from './Icon'
+export { Badge, EstadoAsistenciaBadge, SeveridadBadge, EstadoIncidenciaBadge } from './Badge'
+export type { BadgeKind } from './Badge'
+export { Avatar, NameCell } from './Avatar'
+export { Button } from './Button'
